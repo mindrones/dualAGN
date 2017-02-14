@@ -17,14 +17,14 @@ init();
 
 
 function init() {
-    d3.text('https://39b3fe24c6b2583d62db6bedbe45e61fefeb08b5.googledrive.com/host/0B5lt28Afi0VsMzRQZWVFSjNYcm8/data.csv', function(err, text) {
+    d3.text('data.csv', function(err, text) {
         if (err) {
             console.log('d3.text error: ', err);
             return;
         }
         data = d3.csv.parseRows(text);
         data_transform();
-        
+
         filters_init();
         focus_init();
         plots_init();
@@ -39,13 +39,13 @@ function data_transform() {
 //    0      1              2                       3        4     5          6         7         8        9
 //    SDSSID Classification Peculiarity             Redshift Type  logOIII_Hb logNII_Ha logSII_Ha logOI_Ha SFR
 //    string pp | as | ?    None | 2 | A | A2 | ?   number   2 | ? number     number    number    number   number
-    
+
     filters = {
         classification: {},
         peculiarity: {},
         type: {},
     };
-    
+
     if (HAS_ADAPTIVE_RANGES) {
         extents = {
             redshift: [],
@@ -72,7 +72,7 @@ function data_transform() {
                 SFR: +row[9],
                 band: undefined
             };
-            
+
             var x = obj.log_NII_Ha;
             var y = obj.log_OIII_Hb;
             if (y < stravinska_NII(x)) {
@@ -84,7 +84,7 @@ function data_transform() {
             } else {
                 obj.band = 'above_predicted';
             }
-            
+
             if (HAS_ADAPTIVE_RANGES) {
                 _.each(extents, function(value, key, _extents) {
                     _extents[key].push(obj[key]);
@@ -94,7 +94,7 @@ function data_transform() {
                 // true = button pressed, values filtered in
                 _filters[key][obj[key]] = true;
             });
-            
+
             return obj;
         })
         .sortBy(function(item) {
@@ -102,7 +102,7 @@ function data_transform() {
         })
         .value()
         ;
-    
+
     if (HAS_ADAPTIVE_RANGES) {
         _.each(extents, function(value, key, _extents) {
             _extents[key] = d3.extent(value);
@@ -112,15 +112,15 @@ function data_transform() {
 
 
 function filters_init() {
-    
+
     div_filters = d3.select('#filters');
-    
+
 //    filters = {
 //        classification: {'pp': true, 'as': true},
 //        peculiarity: {'2': true, 'A': true},
 //        type: {'2': true},
 //    };
-    
+
     var filtersData =
         _.map(filters, function(values, key) {
             return _.chain(values)
@@ -133,25 +133,25 @@ function filters_init() {
                     .value()
                     ;
         });
-    
+
 //    [
 //     [{"filter":"classification","name":"pp"},{"filter":"classification","name":"as"}],
 //     [{"filter":"peculiarity","name":"2"},{"filter":"peculiarity","name":"A"}],
 //     [{"filter":"type","name":"2"}]
 //     ]
-    
+
     var filter_div =
         div_filters.selectAll('.filter')
             .data(filtersData)
             .enter()
             .append('div')
             .classed('filter', true);
-        
+
     filter_div.append('div')
         .classed('label', true)
         .append('span')
         .text(function(d, i) { return d[0].filter });
-        
+
     filter_div.selectAll('.value')
         .data(function(d, i) { return d })
         .enter()
@@ -173,7 +173,7 @@ function filters_init() {
         .text(function(d) { return d.name })
         .on('click', filterClick)
         ;
-    
+
     // todo simplify: select buttons and singles, onclick only on buttons
 };
 
@@ -187,78 +187,78 @@ function plots_init() {
     plot1_g = plot1_svg.append('g');
     plot1_xlabel = d3.select('#plot1>:last-child>:last-child span');
     plot1_ylabel = d3.select('#plot1>:first-child span');
-    
+
     plot2_svg = d3.select('#plot2 svg');
     plot2_g = plot2_svg.append('g');
     plot2_xlabel = d3.select('#plot2>:last-child span');
-    
+
     plot3_svg = d3.select('#plot3 svg');
     plot3_g = plot3_svg.append('g');
     plot3_xlabel = d3.select('#plot3>:last-child span');
 }
 
 function plot_1() {
-    
+
     // geometry
-    
+
     var svg_css = getComputedStyle(plot1_svg.node(), null);
     var svg_width = parseInt(svg_css.width);
     var svg_height = parseInt(svg_css.height);
     var padding = {left: 30, right: 10, top: 10, bottom: 20};
-    
+
     var g_width = svg_width - padding.left - padding.right;
     var g_height = svg_height - padding.top - padding.bottom;
-    
+
 //    plot1_svg
 //        .attr('width', svg_width)
 //        .attr('height', svg_height)
 //        .attr('viewBox', "0 0 " + svg_width + "px " + svg_height + "px")
 //    ;
-    
+
     plot1_g.attr('transform', 'translate(' + padding.left + ',' + padding.top + ')');
-    
-    
+
+
     // scales
-    
+
     var xPlotDomain, yPlotDomain;
-    
+
     if (HAS_ADAPTIVE_RANGES) {
-        
+
         var delta;
-        
+
         delta = (extents.log_NII_Ha[1] - extents.log_NII_Ha[0]) / 10;
         xPlotDomain = [extents.log_NII_Ha[0] - delta, extents.log_NII_Ha[1] + delta];
-        
+
         delta = (extents.log_OIII_Hb[1] - extents.log_OIII_Hb[0]) / 10;
         yPlotDomain = [extents.log_OIII_Hb[0] - delta, extents.log_OIII_Hb[1] + delta];
-        
+
     } else {
         xPlotDomain = RANGE_X;
         yPlotDomain = RANGE_Y;
     }
-    
+
     var x =
         d3.scale.linear()
         .domain(xPlotDomain)
         .range([0, g_width]);
-    
+
     var y =
         d3.scale.linear()
         .domain(yPlotDomain)
         .range([g_height, 0]);
-    
-    
+
+
     // generators
-    
+
     var line =
         d3.svg.line()
             .interpolate('basis')
             .x(function(d) { return x(d.x); })
             .y(function(d) { return y(d.y); });
-    
-    
+
+
     // axis
-    
+
     var xAxis =
         d3.svg.axis()
             .scale(x)
@@ -266,12 +266,12 @@ function plot_1() {
             .outerTickSize(-g_height)
             .tickValues(d3.range(xPlotDomain[0], xPlotDomain[1], RANGE_STEP).concat([xPlotDomain[1]]))
             ;
-    
+
     // top
     plot1_g.append('g')
         .attr('class', 'x axis noticksvalue')
         .call(xAxis.orient('top'));
-    
+
     // bottom
     plot1_g.append('g')
         .attr('class', 'x axis')
@@ -280,9 +280,9 @@ function plot_1() {
         .selectAll('.tick text')
         .attr('dy', '1em')
         ;
-    
+
     plot1_xlabel.text('log([N II] λ6584Å/Hα)');
-    
+
     var yAxis =
         d3.svg.axis()
             .scale(y)
@@ -290,45 +290,45 @@ function plot_1() {
             .outerTickSize(-g_width)
             .tickValues(d3.range(yPlotDomain[0], yPlotDomain[1], RANGE_STEP).concat([yPlotDomain[1]]))
             ;
-    
+
     // left
     plot1_g.append('g')
         .attr('class', 'y axis')
         .call(yAxis.orient('left'))
         .selectAll('.tick text')
         .attr('dx', '-0.25em');
-    
+
     // right
     plot1_g.append('g')
         .attr('class', 'y axis noticksvalue')
         .attr('transform', 'translate(' + g_width + ',0)')
         .call(yAxis.orient('right'));
-    
+
     plot1_ylabel.text('log([O III] λ5007Å/Hβ)');
 
-    
+
     // graphics
-    
+
     var g1 = plot1_g.append('g');
-        
-    
+
+
     // eps curves
-    
+
     _.each([-0.1, 0, 0.1], function(eps) {
         var xDomain = [
                        xPlotDomain[0],
                        _.min([xPlotDomain[1], log_OIII_Hb_NII_inverse(yPlotDomain[0], eps)])
                        ];
-        
+
         var step = (xDomain[1] - xDomain[0]) / 50;
         var xRange = d3.range(xDomain[0], xDomain[1], step).concat([xDomain[1]]);
-        
+
         var curvePoints =
             _.chain(xRange)
             .map(function(x) { return {x: x, y: log_OIII_Hb_NII(x, eps)} })
             .filter(function(point) { return point.y <= yPlotDomain[1]; })
             .value();
-        
+
         g1
             .append('path')
             .classed({curve: true, eps: eps})
@@ -336,10 +336,10 @@ function plot_1() {
             .attr('d', line)
             ;
     });
-    
-    
+
+
     // kauffman curve
-    
+
     var xDomainKauffmann = [
                             _.max([log_OIII_Hb_NII_kauffmann_intersection_X(0), xPlotDomain[0]]),
                             kauffmann_inverse(yPlotDomain[0])
@@ -347,16 +347,16 @@ function plot_1() {
     var stepKauffmann = (xDomainKauffmann[1] - xDomainKauffmann[0]) / 50;
     var xRangeKauffmann = d3.range(xDomainKauffmann[0], xDomainKauffmann[1], stepKauffmann);
     xRangeKauffmann.push(xDomainKauffmann[1]);
-    
+
     g1
     .append('path')
     .classed({curve: true, kauff: true})
     .datum( _.map(xRangeKauffmann, function(x) { return {x: x, y: kauffmann(x)} }) )
     .attr('d', line);
-    
-    
+
+
     // fill area
-    
+
     var xDomainEps0 = [
                        log_OIII_Hb_NII_inverse(yPlotDomain[0]),
                        _.max([log_OIII_Hb_NII_kauffmann_intersection_X(0), xPlotDomain[0]]),
@@ -364,20 +364,20 @@ function plot_1() {
     var step = (xDomainEps0[1] - xDomainEps0[0]) / 50;
     var xRangeEps0 = d3.range(xDomainEps0[0], xDomainEps0[1], step);
     xRangeEps0.push(xDomainEps0[1]);
-    
+
     var path_d = line( _.map(xRangeKauffmann, function(x) { return {x: x, y: kauffmann(x)} }) );
     path_d += ' L' + x(log_OIII_Hb_NII_inverse(yPlotDomain[0])) + ',' + y(yPlotDomain[0]);
     path_d += line( _.map(xRangeEps0, function(x) { return {x: x, y: log_OIII_Hb_NII(x)} }) );
     path_d += ' L' + x(xRangeKauffmann[0]) + ',' + y(kauffmann(xRangeKauffmann[0]));
     path_d += 'Z';
-    
+
     g1.insert('path', ":first-child")
         .classed({area: true})
         .attr('d', path_d);
-    
-    
+
+
     // stravinska_NII curve
-    
+
     var xDomainStravinska = [
                             xPlotDomain[0],
                             find_stravinska_NII_intersection_X(yPlotDomain[0], xPlotDomain[0])
@@ -385,16 +385,16 @@ function plot_1() {
     var stepStravinska = (xDomainStravinska[1] - xDomainStravinska[0]) / 50;
     var xRangeStravinska = d3.range(xDomainStravinska[0], xDomainStravinska[1], stepStravinska);
     xRangeStravinska.push(xDomainStravinska[1]);
-    
+
     g1
     .append('path')
     .classed({curve: true, stravinska: true})
     .datum( _.map(xRangeStravinska, function(x) { return {x: x, y: stravinska_NII(x)} }) )
     .attr('d', line);
-    
-    
+
+
     // dots
-    
+
     g1.selectAll('circle')
         .data(data)
         .enter()
@@ -417,67 +417,67 @@ function plot_1() {
 // ===============
 
 function plot_2() {
-    
+
     // geometry
-    
+
     var svg_css = getComputedStyle(plot2_svg.node(), null);
     var svg_width = parseInt(svg_css.width);
     var svg_height = parseInt(svg_css.height);
     var padding = {left: 10, right: 10, top: 10, bottom: 20};
-    
+
     var g_width = svg_width - padding.left - padding.right;
     var g_height = svg_height - padding.top - padding.bottom;
-    
+
 //    plot2_svg
 //        .attr('width', svg_width)
 //        .attr('height', svg_height)
 //        .attr('viewBox', "0 0 " + svg_width + "px " + svg_height + "px")
 //    ;
-    
+
     plot2_g.attr('transform', 'translate(' + padding.left + ',' + padding.top + ')');
-    
-    
+
+
     // scales
-    
+
     var xPlotDomain, yPlotDomain;
-    
+
     if (HAS_ADAPTIVE_RANGES) {
-        
+
         var delta;
-        
+
         delta = (extents.log_SII_Ha[1] - extents.log_SII_Ha[0]) / 10;
         xPlotDomain = [extents.log_SII_Ha[0] - delta, extents.log_SII_Ha[1] + delta];
-        
+
         delta = (extents.log_OIII_Hb[1] - extents.log_OIII_Hb[0]) / 10;
         yPlotDomain = [extents.log_OIII_Hb[0] - delta, extents.log_OIII_Hb[1] + delta];
-        
+
     } else {
         xPlotDomain = RANGE_X;
         yPlotDomain = RANGE_Y;
     }
-    
+
     var x =
         d3.scale.linear()
             .domain(xPlotDomain)
             .range([0, g_width]);
-    
+
     var y =
         d3.scale.linear()
         .domain(yPlotDomain)
         .range([g_height, 0]);
-    
-    
+
+
     // generators
-    
+
     var line =
         d3.svg.line()
             .interpolate('basis')
             .x(function(d) { return x(d.x); })
             .y(function(d) { return y(d.y); });
-    
-    
+
+
     // axis
-    
+
     var xAxis =
         d3.svg.axis()
             .scale(x)
@@ -485,11 +485,11 @@ function plot_2() {
             .outerTickSize(-g_height)
             .tickValues(d3.range(xPlotDomain[0], xPlotDomain[1], RANGE_STEP).concat([xPlotDomain[1]]))
             ;
-    
+
     plot2_g.append('g')
         .attr('class', 'x axis noticksvalue')
         .call(xAxis.orient('top'));
-    
+
     plot2_g.append('g')
         .attr('class', 'x axis')
         .attr('transform', 'translate(0,' + g_height + ')')
@@ -497,9 +497,9 @@ function plot_2() {
         .selectAll('.tick text')
         .attr('dy', '1em')
         ;
-    
+
     plot2_xlabel.text('log([S II] λλ6716Å,6731Å/Hα)');
-    
+
     var yAxis =
         d3.svg.axis()
             .scale(y)
@@ -507,39 +507,39 @@ function plot_2() {
             .outerTickSize(-g_width)
             .tickValues(d3.range(yPlotDomain[0], yPlotDomain[1], RANGE_STEP).concat([yPlotDomain[1]]))
             ;
-    
+
     plot2_g.append('g')
         .attr('class', 'y axis noticksvalue')
         .call(yAxis.orient('left'));
-    
+
     plot2_g.append('g')
         .attr('class', 'y axis noticksvalue')
         .attr('transform', 'translate(' + g_width + ',0)')
         .call(yAxis.orient('right'));
-    
-    
+
+
     // graphics
-    
+
     var g2 = plot2_g.append('g');
-    
-    
+
+
     // eps curves
-    
+
     _.each([-0.1, 0, 0.1], function(eps) {
         var xDomain = [
                        xPlotDomain[0],
                        _.min([xPlotDomain[1], log_OIII_Hb_SII_inverse(yPlotDomain[0], eps)])
                        ];
-        
+
         var step = (xDomain[1] - xDomain[0]) / 50;
         var xRange = d3.range(xDomain[0], xDomain[1], step).concat([xDomain[1]]);
-        
+
         var curvePoints =
             _.chain(xRange)
             .map(function(x) { return {x: x, y: log_OIII_Hb_SII(x, eps)} })
             .filter(function(point) { return point.y <= yPlotDomain[1]; })
             .value();
-        
+
         g2
             .append('path')
             .classed({curve: true, eps: eps})
@@ -547,8 +547,8 @@ function plot_2() {
             .attr('d', line)
             ;
     });
-    
-    
+
+
     // stravinska_SII curve
     var xDomainStravinska = [
                              _.min([stravinska_SII_inverse(yPlotDomain[0]), xPlotDomain[1]]),
@@ -557,16 +557,16 @@ function plot_2() {
     var stepStravinska = (xDomainStravinska[1] - xDomainStravinska[0]) / 50;
     var xRangeStravinska = d3.range(xDomainStravinska[0], xDomainStravinska[1], stepStravinska);
     xRangeStravinska.push(xDomainStravinska[1]);
-    
+
     g2
     .append('path')
     .classed({curve: true, stravinska: true})
     .datum( _.map(xRangeStravinska, function(x) { return {x: x, y: stravinska_SII(x)} }) )
     .attr('d', line);
-    
-    
+
+
     // fill area
-    
+
     var xDomainEps0 = [
                        xPlotDomain[0],
                        _.min([xPlotDomain[1], log_OIII_Hb_SII_inverse(yPlotDomain[0])])
@@ -574,7 +574,7 @@ function plot_2() {
     var step = (xDomainEps0[1] - xDomainEps0[0]) / 50;
     var xRangeEps0 = d3.range(xDomainEps0[0], xDomainEps0[1], step);
     xRangeEps0.push(xDomainEps0[1]);
-    
+
     var path_d = line( _.map(xRangeEps0, function(x) { return {x: x, y: log_OIII_Hb_SII(x)} }) );
     if (xDomainEps0[1] < log_OIII_Hb_SII_inverse(yPlotDomain[0])) {
         path_d += ' L' + x(xPlotDomain[1]) + ',' + y(yPlotDomain[0]);
@@ -583,13 +583,13 @@ function plot_2() {
     path_d += line( _.map(xRangeStravinska, function(x) { return {x: x, y: stravinska_SII(x)} }) );
     path_d += ' L' + x(xPlotDomain[0]) + ',' + y(log_OIII_Hb_SII(xPlotDomain[0]));
     path_d += 'Z';
-    
+
     g2.insert('path', ":first-child")
         .classed({area: true})
         .attr('d', path_d);
-    
+
     // dots
-    
+
     g2.selectAll('circle')
         .data(data)
         .enter()
@@ -609,66 +609,66 @@ function plot_2() {
 // ===============
 
 function plot_3() {
-    
+
     // geometry
-    
+
     var svg_css = getComputedStyle(plot3_svg.node(), null);
     var svg_width = parseInt(svg_css.width);
     var svg_height = parseInt(svg_css.height);
     var padding = {left: 10, right: 10, top: 10, bottom: 20};
-    
+
     var g_width = svg_width - padding.left - padding.right;
     var g_height = svg_height - padding.top - padding.bottom;
-    
+
 //    plot3_svg
 //        .attr('width', svg_width)
 //        .attr('height', svg_height)
 //        .attr('viewBox', "0 0 " + svg_width + "px " + svg_height + "px")
 //    ;
-    
+
     plot3_g.attr('transform', 'translate(' + padding.left + ',' + padding.top + ')');
-    
+
     // scales
-    
+
     var xPlotDomain, yPlotDomain;
-    
+
     if (HAS_ADAPTIVE_RANGES) {
-        
+
         var delta;
-        
+
         delta = (extents.log_OI_Ha[1] - extents.log_OI_Ha[0]) / 10;
         xPlotDomain = [extents.log_OI_Ha[0] - delta, extents.log_OI_Ha[1] + delta];
-        
+
         delta = (extents.log_OIII_Hb[1] - extents.log_OIII_Hb[0]) / 10;
         yPlotDomain = [extents.log_OIII_Hb[0] - delta, extents.log_OIII_Hb[1] + delta];
-        
+
     } else {
         xPlotDomain = RANGE_X;
         yPlotDomain = RANGE_Y;
     }
-    
+
     var x =
         d3.scale.linear()
             .domain(xPlotDomain)
             .range([0, g_width]);
-    
+
     var y =
         d3.scale.linear()
         .domain(yPlotDomain)
         .range([g_height, 0]);
-    
-    
+
+
     // generators
-    
+
     var line =
         d3.svg.line()
             .interpolate('basis')
             .x(function(d) { return x(d.x); })
             .y(function(d) { return y(d.y); });
-    
-    
+
+
     // axis
-    
+
     var xAxis =
         d3.svg.axis()
             .scale(x)
@@ -676,7 +676,7 @@ function plot_3() {
             .outerTickSize(-g_height)
             .tickValues(d3.range(xPlotDomain[0], xPlotDomain[1], RANGE_STEP).concat([xPlotDomain[1]]))
             ;
-    
+
     plot3_g.append('g')
         .attr('class', 'x axis noticksvalue')
         .call(xAxis.orient('top'));
@@ -688,9 +688,9 @@ function plot_3() {
         .selectAll('.tick text')
         .attr('dy', '1em')
         ;
-    
+
     plot3_xlabel.text('log([O I] λ6300Å/Hα)');
-    
+
     var yAxis =
         d3.svg.axis()
             .scale(y)
@@ -698,7 +698,7 @@ function plot_3() {
             .outerTickSize(-g_width)
             .tickValues(d3.range(yPlotDomain[0], yPlotDomain[1], RANGE_STEP).concat([yPlotDomain[1]]))
             ;
-    
+
     plot3_g.append('g')
         .attr('class', 'y axis noticksvalue')
         .call(yAxis.orient('left'));
@@ -707,29 +707,29 @@ function plot_3() {
         .attr('class', 'y axis noticksvalue')
         .attr('transform', 'translate(' + g_width + ',0)')
         .call(yAxis.orient('right'));
-    
-    
+
+
     // graphics
-    
+
     var g3 = plot3_g.append('g');
-    
+
     // eps curves
-    
+
     _.each([-0.1, 0, 0.1], function(eps) {
         var xDomain = [
                        xPlotDomain[0],
                        _.min([xPlotDomain[1], log_OIII_Hb_OI_inverse(yPlotDomain[0], eps)])
                        ];
-        
+
         var step = (xDomain[1] - xDomain[0]) / 50;
         var xRange = d3.range(xDomain[0], xDomain[1], step).concat([xDomain[1]]);
-        
+
         var curvePoints =
             _.chain(xRange)
             .map(function(x) { return {x: x, y: log_OIII_Hb_OI(x, eps)} })
             .filter(function(point) { return point.y <= yPlotDomain[1]; })
             .value();
-        
+
         g3
             .append('path')
             .classed({curve: true, eps: eps})
@@ -737,10 +737,10 @@ function plot_3() {
             .attr('d', line)
             ;
     });
-    
-    
+
+
     // dots
-    
+
     g3.selectAll('circle')
         .data(data)
         .enter()
@@ -761,11 +761,11 @@ function plot_3() {
 
 
 function filterClick(d, i) {
-    
+
     // toggle
     filters[d.filter][d.name] = !filters[d.filter][d.name];
     d3.select(this).classed('pressed', filters[d.filter][d.name]);
-    
+
     _.each([plot1_g, plot2_g, plot3_g], function(plot_g) {
         plot_g.selectAll('circle')
             .classed({
@@ -792,19 +792,19 @@ function focus_showdata(d) {
     div_focus
         .selectAll('*')
         .remove();
-    
+
     div_focus
         .append('span')
         .classed('focus', true)
         .text(d.SDSS_ID);
-    
+
     div_focus
         .append('span')
         .text(' (z = ' + d.redshift + ', SFR: ' + d.SFR + ' M');
-    
+
     div_focus.append('sub')
         .text('⨀'); // http://en.wikipedia.org/wiki/Solar_mass
-    
+
     div_focus.append('span')
         .text('/yr)');
 }
@@ -814,7 +814,7 @@ function focus_showmessage() {
     div_focus
         .selectAll('*')
         .remove();
-    
+
     div_focus
         .append('span')
         .classed('dimmed', true)
@@ -824,7 +824,7 @@ function focus_showmessage() {
 
 function mouseover(d, i) {
     focus_showdata(d);
-    
+
     _.each([plot1_g, plot2_g, plot3_g], function(plot_g) {
         plot_g.selectAll('circle')
             .classed({
@@ -841,7 +841,7 @@ function mouseover(d, i) {
 
 function mouseout(d, i) {
     focus_showmessage();
-    
+
     _.each([plot1_g, plot2_g, plot3_g], function(plot_g) {
         plot_g.selectAll('circle')
             .classed({focused: false, dimmed: false})
@@ -891,13 +891,13 @@ function log_OIII_Hb_NII_kauffmann_intersection_X(eps) {
     var d = 1.30 + eps;
     var e = 0.61;
     var f = 0.05 + eps;
-    
+
     var A = a - d;
     var B = b - e - (c + f) * (a - d);
     var C = e * c - b * f + c * f * (a - d);
-    
+
     var xIntersection = (-B + Math.sqrt(Math.pow(B, 2) - 4 * A * C)) / (2 * A);
-    
+
     return xIntersection
 };
 
@@ -921,21 +921,21 @@ function stravinska_NII(n) {
 function find_stravinska_NII_intersection_X(y1, x0) {
     var deltaX = 0.1;
     var errY = 0.1;
-    
+
     var y0 = stravinska_NII(x0);
     var x, y;
     var x_ = x0;
     var y_ = y0;
-    
+
     var pre;
-    
+
     // reach
-    
+
     y = stravinska_NII(x0);
     while (Math.abs(y - y1) > errY) {
         x = x_ + deltaX;
         y = stravinska_NII(x);
-        
+
         if (Math.abs(y - y_) >= errY) {
             while (Math.abs(y - y_) >= errY) {
                 deltaX *= 0.9;
@@ -949,28 +949,28 @@ function find_stravinska_NII_intersection_X(y1, x0) {
                 y = stravinska_NII(x);
             }
         }
-        
+
         x_ = x;
         y_ = y;
-        
+
         if (y > y1) {
             pre = {x: x_, y: y_};
         }
     }
-    
+
     // refine
-    
+
     errY /= 20;
     deltaX /= 10;
-    
+
     x_ = pre.x;
     y_ = pre.y;
     y = pre.y;
-    
+
     while (Math.abs(y - y1) > errY) {
         x = x_ + deltaX;
         y = stravinska_NII(x);
-        
+
         if (Math.abs(y - y_) >= errY) {
             while (Math.abs(y - y_) >= errY) {
                 deltaX *= 0.9;
@@ -984,15 +984,15 @@ function find_stravinska_NII_intersection_X(y1, x0) {
                 y = stravinska_NII(x);
             }
         }
-        
+
         x_ = x;
         y_ = y;
-        
+
         if (y > y1) {
             pre = {x: x_, y: y_};
         }
     }
-    
+
     return pre.x;
 }
 
